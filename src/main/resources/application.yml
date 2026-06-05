@@ -7,7 +7,7 @@ spring:
   application:
     name: medico-platform
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:h2}
 
   jpa:
     open-in-view: false
