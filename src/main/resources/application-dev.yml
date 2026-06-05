@@ -1,0 +1,22 @@
+# ===========================================================================
+# Profile DEV - desenvolvimento local
+# Sobe contra um PostgreSQL local (ex.: docker compose up db)
+# ===========================================================================
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/medico}
+    username: ${SPRING_DATASOURCE_USERNAME:medico}
+    password: ${SPRING_DATASOURCE_PASSWORD:medico}
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+logging:
+  level:
+    com.vitalink.platform: DEBUG
+    org.hibernate.SQL: DEBUG

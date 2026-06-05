@@ -1,0 +1,26 @@
+# ===========================================================================
+# Profile TEST - usado nos testes de integracao.
+# O datasource e provido em runtime via Testcontainers (@DynamicPropertySource).
+# ===========================================================================
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LW11c3QtYmUtYXQtbGVhc3QtNjQtYnl0ZXMtbG9uZy1mb3ItaG1hYy1zaGE1MTItYWxnb3JpdGht
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+    issuer: medico-platform-test
+  admin:
+    email: admin@medico.com
+    password: ChangeMe@123
+
+logging:
+  level:
+    org.testcontainers: INFO
+    com.vitalink.platform: INFO

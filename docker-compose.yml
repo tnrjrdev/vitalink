@@ -1,0 +1,59 @@
+# ===========================================================================
+# Orquestracao local: PostgreSQL + aplicacao Medico
+# Uso:  docker compose up --build
+# As variaveis vem do arquivo .env (veja .env.example)
+# ===========================================================================
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: medico-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medico}
+      POSTGRES_USER: ${POSTGRES_USER:-medico}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medico}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - medico-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medico} -d ${POSTGRES_DB:-medico}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medico-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medico-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-medico}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-medico}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-medico}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_JWT_ACCESS_EXPIRATION_MS: ${APP_JWT_ACCESS_EXPIRATION_MS:-900000}
+      APP_JWT_REFRESH_EXPIRATION_MS: ${APP_JWT_REFRESH_EXPIRATION_MS:-604800000}
+      APP_JWT_ISSUER: ${APP_JWT_ISSUER:-medico-platform}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@medico.com}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-ChangeMe@123}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - medico-net
+
+volumes:
+  medico-db-data:
+    driver: local
+
+networks:
+  medico-net:
+    driver: bridge

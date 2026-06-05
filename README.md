@@ -1,0 +1,365 @@
+# Plataforma Médico
+
+Plataforma unificada de saúde que conecta os principais atores do setor —
+**hospitais, clínicas, operadoras e pacientes** — em uma única API REST segura.
+
+O primeiro entregável (este repositório) cobre o núcleo funcional pronto para
+produção: **autenticação/autorização (JWT + RBAC)**, **cadastros** (organizações,
+profissionais, pacientes e planos de saúde) e **agendamento de consultas** com
+regras de negócio reais (sem _overbooking_, máquina de estados de status, etc.).
+
+---
+
+## Sumário
+
+- [Stack](#stack)
+- [Arquitetura](#arquitetura)
+- [Modelo de domínio](#modelo-de-domínio)
+- [Como executar localmente](#como-executar-localmente)
+  - [Opção A — Docker Compose (recomendada)](#opção-a--docker-compose-recomendada)
+  - [Opção B — Maven + PostgreSQL](#opção-b--maven--postgresql)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Fluxo de autenticação](#fluxo-de-autenticação)
+- [Endpoints](#endpoints)
+- [Documentação interativa (Swagger)](#documentação-interativa-swagger)
+- [Testes e cobertura](#testes-e-cobertura)
+- [Decisões técnicas](#decisões-técnicas)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Linguagem | **Java 11** |
+| Framework | **Spring Boot 2.7.18** (Spring MVC, Spring Security 5.7, Spring Data JPA) |
+| Banco de dados | **PostgreSQL 15** |
+| Migrations | **Flyway** |
+| Autenticação | **JWT** (jjwt 0.11.5), HMAC-SHA512 |
+| Documentação | **springdoc-openapi 1.7** (Swagger UI / OpenAPI 3) |
+| Build | **Maven** |
+| Testes | **JUnit 5**, **Mockito**, **Testcontainers**, **JaCoCo** |
+| Infra | **Docker**, **Docker Compose** |
+| Produtividade | **Lombok** |
+
+> **Nota sobre versões:** os requisitos originais pediam "Java 11 + Spring Boot 3",
+> combinação tecnicamente impossível (o Spring Boot 3 exige Java 17+ e usa
+> `jakarta.*`). Optou-se por **manter o Java 11 com Spring Boot 2.7.18** (último da
+> linha 2.7). Recomenda-se planejar a migração para Spring Boot 3 / Java 17+ no
+> roadmap, pois o suporte OSS da linha 2.7 já foi encerrado.
+
+---
+
+## Arquitetura
+
+Arquitetura **em camadas**, com responsabilidades estritamente separadas
+(controllers não contêm regra de negócio):
+
+```
+com.vitalink.platform
+├── controller/     # Endpoints REST (entrada/saída HTTP, validação, RBAC)
+├── service/        # Regras de negócio (interfaces) + impl/ (implementações)
+├── repository/     # Spring Data JPA
+├── entity/         # Entidades JPA + enums/
+├── dto/            # Objetos de transferência (request/response) por contexto
+├── mapper/         # Conversão entity <-> DTO
+├── security/       # JWT, filtros, UserDetails, configuração de segurança
+├── config/         # OpenAPI, auditoria JPA, seed inicial, beans utilitários
+└── common/         # BaseEntity, Address, exceções e tratamento global
+```
+
+Padrões aplicados: **SOLID**, **Clean Code**, **DTO Pattern**, **Repository
+Pattern**, **RESTful**, tratamento **global** de exceções, **Bean Validation**,
+logs estruturados e **auditoria** automática (createdAt/By, updatedAt/By).
+
+---
+
+## Modelo de domínio
+
+| Entidade | Descrição |
+|---|---|
+| `User` + `Role` | Identidade de autenticação e perfis (RBAC). Relação N:N. |
+| `Organization` | Hospital, Clínica **ou** Operadora (campo discriminador `type`). |
+| `HealthcareProfessional` | Profissional vinculado a uma organização (N:1). |
+| `Patient` | Paciente (pode ter `User` para acesso ao portal). |
+| `InsurancePlan` | Plano ofertado por uma Operadora (`Organization` do tipo `INSURER`). |
+| `Appointment` | Consulta — conecta paciente, profissional, organização e (opcional) plano. |
+
+Características transversais (em `BaseEntity`):
+
+- **PK `UUID`** (não-enumerável, segura para exposição em URLs).
+- **Auditoria** (`createdAt`/`createdBy`/`updatedAt`/`updatedBy`) via Spring Data JPA.
+- **Optimistic locking** (`@Version`) para concorrência.
+- **Soft-delete** via campo `status` (preserva histórico).
+- Timestamps de auditoria em **UTC** (`Instant` → `timestamptz`).
+
+Regras de negócio relevantes em `AppointmentService`:
+
+- Período válido (fim > início) e no futuro.
+- **Sem _overbooking_**: nenhum profissional pode ter duas consultas com horários
+  sobrepostos (status `SCHEDULED`/`CONFIRMED`).
+- **Máquina de estados** de status: `SCHEDULED → CONFIRMED → COMPLETED`, com
+  `CANCELLED`/`NO_SHOW` como estados possíveis (transições inválidas são rejeitadas).
+- Atores (paciente, profissional, plano) precisam estar ativos.
+
+---
+
+## Como executar localmente
+
+### Opção A — Docker Compose (recomendada)
+
+Sobe **PostgreSQL + aplicação** com um comando.
+
+```bash
+# 1. Crie o arquivo .env a partir do exemplo e ajuste os valores (em especial o segredo JWT)
+cp .env.example .env
+
+# 2. Suba tudo
+docker compose up --build
+```
+
+A API ficará disponível em **http://localhost:8080** e o Swagger em
+**http://localhost:8080/swagger-ui.html**.
+
+### Opção B — Maven + PostgreSQL
+
+Pré-requisitos: **JDK 11+** e **Maven 3.8+**. Suba apenas o banco via Docker:
+
+```bash
+docker compose up -d db
+```
+
+Execute a aplicação com o profile `dev`:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+> O profile `dev` usa, por padrão, `jdbc:postgresql://localhost:5432/medico`
+> com usuário/senha `medico`/`medico` (veja `application-dev.yml`).
+
+O **Flyway** cria o schema e os perfis automaticamente na primeira execução.
+O **usuário administrador inicial** é criado no _boot_ (e-mail e senha vêm das
+variáveis `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD`; padrão
+`admin@medico.com` / `ChangeMe@123`).
+
+---
+
+## Variáveis de ambiente
+
+Todas têm valores-padrão para desenvolvimento; em produção, defina-as
+explicitamente (veja `.env.example`).
+
+| Variável | Descrição | Padrão (dev) |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | Profile ativo (`dev`/`prod`) | `dev` |
+| `APP_PORT` | Porta HTTP da aplicação | `8080` |
+| `SPRING_DATASOURCE_URL` | URL JDBC do PostgreSQL | `jdbc:postgresql://localhost:5432/medico` |
+| `SPRING_DATASOURCE_USERNAME` | Usuário do banco | `medico` |
+| `SPRING_DATASOURCE_PASSWORD` | Senha do banco | `medico` |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Credenciais do container do banco | `medico` |
+| `APP_JWT_SECRET` | Segredo (Base64, ≥ 64 bytes) para HMAC-SHA512 | _valor de dev_ |
+| `APP_JWT_ACCESS_EXPIRATION_MS` | Validade do _access token_ | `900000` (15 min) |
+| `APP_JWT_REFRESH_EXPIRATION_MS` | Validade do _refresh token_ | `604800000` (7 dias) |
+| `APP_JWT_ISSUER` | Emissor do token (claim `iss`) | `medico-platform` |
+| `APP_ADMIN_EMAIL` | E-mail do admin inicial | `admin@medico.com` |
+| `APP_ADMIN_PASSWORD` | Senha do admin inicial | `ChangeMe@123` |
+| `APP_CORS_ALLOWED_ORIGINS` | Origens permitidas (CSV) | `http://localhost:3000,http://localhost:8080` |
+
+> **Gerar um segredo JWT forte:** `openssl rand -base64 64`
+
+---
+
+## Fluxo de autenticação
+
+Autenticação **stateless** baseada em JWT (sem sessão/cookie).
+
+```
+1. POST /api/v1/auth/register  ou  /api/v1/auth/login
+      └─> retorna { accessToken, refreshToken, expiresIn, roles, ... }
+
+2. Requisições autenticadas enviam o header:
+      Authorization: Bearer <accessToken>
+
+3. Quando o access token expira (15 min):
+      POST /api/v1/auth/refresh  { "refreshToken": "<...>" }
+      └─> retorna um novo par de tokens
+```
+
+Detalhes de segurança:
+
+- Senhas com **BCrypt** (força 12).
+- Tokens assinados com **HMAC-SHA512**; um claim `type` distingue
+  _access_ de _refresh_ (um refresh token nunca é aceito como credencial de acesso).
+- **RBAC** por perfil: `ROLE_ADMIN`, `ROLE_HOSPITAL`, `ROLE_CLINIC`,
+  `ROLE_INSURER`, `ROLE_PROFESSIONAL`, `ROLE_PATIENT`.
+- No auto-registro, apenas os perfis `ROLE_PATIENT` e `ROLE_PROFESSIONAL` são
+  autoatribuíveis (perfis privilegiados nunca são concedidos via cliente).
+- Erros retornam um corpo padronizado (`ApiError`, inspirado no RFC 7807).
+
+### Exemplo rápido (curl)
+
+```bash
+# Login como administrador (criado no boot)
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@medico.com","password":"ChangeMe@123"}' | jq -r .accessToken)
+
+# Criar uma organização
+curl -X POST http://localhost:8080/api/v1/organizations \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"legalName":"Hospital Central LTDA","cnpj":"12345678000190","type":"HOSPITAL"}'
+```
+
+---
+
+## Endpoints
+
+Prefixo base: **`/api/v1`**. Todos os endpoints (exceto `auth`, documentação e
+health) exigem `Authorization: Bearer <token>`.
+
+### Autenticação — `/api/v1/auth` (público)
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| `POST` | `/register` | Registra um usuário (paciente/profissional) e retorna tokens |
+| `POST` | `/login` | Autentica e emite tokens |
+| `POST` | `/refresh` | Renova o access token |
+
+### Usuários — `/api/v1/users`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `GET` | `/me` | autenticado | Dados do usuário logado |
+| `GET` | `/{id}` | ADMIN | Busca por id |
+| `GET` | `/` | ADMIN | Lista paginada |
+
+### Organizações — `/api/v1/organizations`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` | ADMIN | Cria organização |
+| `PUT` | `/{id}` | ADMIN | Atualiza |
+| `GET` | `/{id}` | autenticado | Busca por id |
+| `GET` | `/?type=HOSPITAL` | autenticado | Lista (filtro opcional por tipo) |
+| `DELETE` | `/{id}` | ADMIN | Inativa (soft-delete) |
+
+### Profissionais — `/api/v1/professionals`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` | ADMIN, HOSPITAL, CLINIC | Cadastra profissional |
+| `PUT` | `/{id}` | ADMIN, HOSPITAL, CLINIC | Atualiza |
+| `GET` | `/{id}` | autenticado | Busca por id |
+| `GET` | `/?organizationId=...` | autenticado | Lista (filtro opcional por organização) |
+| `DELETE` | `/{id}` | ADMIN, HOSPITAL, CLINIC | Inativa |
+
+### Pacientes — `/api/v1/patients`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Cadastra paciente |
+| `PUT` | `/{id}` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Atualiza |
+| `GET` | `/{id}` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Busca por id |
+| `GET` | `/` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Lista paginada |
+| `DELETE` | `/{id}` | ADMIN | Inativa |
+
+### Planos de saúde — `/api/v1/insurance-plans`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` | ADMIN, INSURER | Cria plano |
+| `PUT` | `/{id}` | ADMIN, INSURER | Atualiza |
+| `GET` | `/{id}` | autenticado | Busca por id |
+| `GET` | `/?operatorId=...` | autenticado | Lista (filtro opcional por operadora) |
+| `DELETE` | `/{id}` | ADMIN, INSURER | Inativa |
+
+### Consultas — `/api/v1/appointments`
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL, PATIENT | Agenda consulta |
+| `PATCH` | `/{id}/reschedule` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL, PATIENT | Reagenda |
+| `PATCH` | `/{id}/status` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Altera status |
+| `GET` | `/{id}` | autenticado | Busca por id |
+| `GET` | `/patient/{patientId}` | autenticado | Lista por paciente |
+| `GET` | `/professional/{professionalId}` | autenticado | Lista por profissional |
+
+Paginação: parâmetros `page`, `size` e `sort` em todos os endpoints de listagem.
+
+---
+
+## Documentação interativa (Swagger)
+
+Com a aplicação no ar:
+
+- **Swagger UI:** http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON:** http://localhost:8080/v3/api-docs
+
+Clique em **Authorize** e informe o _access token_ (`Bearer`) para testar os
+endpoints protegidos diretamente pela interface.
+
+---
+
+## Testes e cobertura
+
+```bash
+# Testes unitários (Mockito) — rápidos, sem dependências externas
+mvn test
+
+# Suíte completa (unitários + integração com Testcontainers) + relatório/gate de cobertura
+mvn verify
+```
+
+- **75 testes** (unitários + integração).
+- Os testes de **integração** sobem um **PostgreSQL real via Testcontainers**
+  (paridade com produção; o Flyway roda as migrations no container) — exigem
+  **Docker** em execução.
+- **Cobertura via JaCoCo** com _gate_ mínimo de **80%** de instruções, validado
+  na fase `verify`. Relatório HTML em `target/site/jacoco/index.html`.
+  (Boilerplate gerado pelo Lombok — DTOs, entidades — é excluído da medição.)
+
+---
+
+## Decisões técnicas
+
+- **UUID como chave primária** — evita enumeração de recursos e facilita
+  ambientes distribuídos.
+- **Flyway em vez de `ddl-auto`** — o schema é versionado e auditável;
+  `hibernate.ddl-auto=validate` apenas confere a aderência ao mapeamento.
+- **Organização em tabela única com discriminador `type`** — hospital, clínica e
+  operadora compartilham os mesmos atributos; mais simples e performático que
+  herança JPA.
+- **`Instant` (UTC) nos campos de auditoria** — universalmente suportado pela
+  auditoria do Spring Data e mapeado para `timestamptz` (evita ambiguidades de
+  fuso). Os horários de agenda usam `OffsetDateTime`.
+- **Soft-delete** — registros são inativados (status), preservando histórico
+  clínico/administrativo.
+- **Validação anti-conflito de agenda** no serviço + índices apropriados.
+  _Hardening_ recomendado para produção: uma constraint de exclusão
+  (`btree_gist`) no PostgreSQL para garantir a ausência de _overbooking_ também
+  no nível do banco.
+- **Conformidade LGPD** — dados sensíveis (CPF, dados de saúde) sob RBAC estrito
+  e nunca registrados em logs.
+
+---
+
+## Troubleshooting
+
+**Testcontainers: "Could not find a valid Docker environment" (Windows + Docker Desktop muito recente).**
+Em algumas instalações recentes do Docker Desktop no Windows, a biblioteca cliente
+negocia uma versão de API antiga via _named pipe_ e falha. Solução ao rodar os
+testes:
+
+```bash
+export DOCKER_HOST='npipe:////./pipe/docker_engine_linux'
+mvn -Dapi.version=1.44 verify
+```
+
+Em Linux/CI com socket Unix padrão, nada disso é necessário. **Não** fixe esses
+valores no `pom.xml` (quebraria outros ambientes).
+
+**Flyway falha por schema pré-existente divergente.** Em desenvolvimento, recrie
+o volume do banco: `docker compose down -v && docker compose up --build`.
