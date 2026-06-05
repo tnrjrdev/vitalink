@@ -1,4 +1,4 @@
-# Plataforma Médico
+# Plataforma Vitalink
 
 Plataforma unificada de saúde que conecta os principais atores do setor —
 **hospitais, clínicas, operadoras e pacientes** — em uma única API REST segura.
