@@ -137,4 +137,20 @@ class OrganizationServiceImplTest {
 
         assertThat(existing.getStatus()).isEqualTo(RecordStatus.INACTIVE);
     }
+
+    @Test
+    @DisplayName("reativa organizacao inativada")
+    void shouldActivate() {
+        Organization existing = Organization.builder()
+                .legalName("Op").cnpj("99").type(OrganizationType.HOSPITAL)
+                .status(RecordStatus.INACTIVE).build();
+        UUID id = UUID.randomUUID();
+        existing.setId(id);
+        when(organizationRepository.findById(id)).thenReturn(Optional.of(existing));
+
+        OrganizationResponse response = service.activate(id);
+
+        assertThat(existing.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+        assertThat(response.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
 }

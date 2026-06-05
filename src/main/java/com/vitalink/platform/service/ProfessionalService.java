@@ -19,5 +19,7 @@ public interface ProfessionalService {
 
     void deactivate(UUID id);
 
+    ProfessionalResponse activate(UUID id);
+
     HealthcareProfessional getEntityOrThrow(UUID id);
 }

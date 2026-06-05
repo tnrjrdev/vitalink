@@ -190,4 +190,17 @@ class ProfessionalServiceImplTest {
 
         assertThat(p.getStatus()).isEqualTo(RecordStatus.INACTIVE);
     }
+
+    @Test
+    @DisplayName("reativa profissional inativado")
+    void shouldActivate() {
+        HealthcareProfessional p = existing();
+        p.setStatus(RecordStatus.INACTIVE);
+        when(professionalRepository.findById(p.getId())).thenReturn(Optional.of(p));
+
+        ProfessionalResponse response = service.activate(p.getId());
+
+        assertThat(p.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+        assertThat(response.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
 }

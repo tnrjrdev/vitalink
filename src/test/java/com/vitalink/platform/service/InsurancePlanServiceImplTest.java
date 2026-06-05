@@ -174,4 +174,17 @@ class InsurancePlanServiceImplTest {
 
         assertThat(plan.getStatus()).isEqualTo(RecordStatus.INACTIVE);
     }
+
+    @Test
+    @DisplayName("reativa plano inativado")
+    void shouldActivate() {
+        InsurancePlan plan = existing(org(OrganizationType.INSURER));
+        plan.setStatus(RecordStatus.INACTIVE);
+        when(insurancePlanRepository.findById(plan.getId())).thenReturn(Optional.of(plan));
+
+        InsurancePlanResponse response = service.activate(plan.getId());
+
+        assertThat(plan.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+        assertThat(response.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
 }

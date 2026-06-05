@@ -20,5 +20,7 @@ public interface OrganizationService {
 
     void deactivate(UUID id);
 
+    OrganizationResponse activate(UUID id);
+
     Organization getEntityOrThrow(UUID id);
 }

@@ -104,6 +104,15 @@ public class ProfessionalServiceImpl implements ProfessionalService {
     }
 
     @Override
+    @Transactional
+    public ProfessionalResponse activate(UUID id) {
+        HealthcareProfessional entity = getEntityOrThrow(id);
+        entity.setStatus(RecordStatus.ACTIVE);
+        log.info("Profissional reativado: id={}", id);
+        return professionalMapper.toResponse(entity);
+    }
+
+    @Override
     public HealthcareProfessional getEntityOrThrow(UUID id) {
         return professionalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Profissional", "id", id));

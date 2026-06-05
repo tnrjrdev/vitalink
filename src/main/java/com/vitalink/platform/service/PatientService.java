@@ -19,5 +19,7 @@ public interface PatientService {
 
     void deactivate(UUID id);
 
+    PatientResponse activate(UUID id);
+
     Patient getEntityOrThrow(UUID id);
 }

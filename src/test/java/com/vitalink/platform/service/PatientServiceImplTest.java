@@ -162,4 +162,17 @@ class PatientServiceImplTest {
 
         assertThat(p.getStatus()).isEqualTo(RecordStatus.INACTIVE);
     }
+
+    @Test
+    @DisplayName("reativa paciente inativado")
+    void shouldActivate() {
+        Patient p = existing();
+        p.setStatus(RecordStatus.INACTIVE);
+        when(patientRepository.findById(p.getId())).thenReturn(Optional.of(p));
+
+        PatientResponse response = service.activate(p.getId());
+
+        assertThat(p.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+        assertThat(response.getStatus()).isEqualTo(RecordStatus.ACTIVE);
+    }
 }

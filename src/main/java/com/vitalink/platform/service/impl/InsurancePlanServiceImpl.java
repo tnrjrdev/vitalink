@@ -95,6 +95,15 @@ public class InsurancePlanServiceImpl implements InsurancePlanService {
     }
 
     @Override
+    @Transactional
+    public InsurancePlanResponse activate(UUID id) {
+        InsurancePlan entity = getEntityOrThrow(id);
+        entity.setStatus(RecordStatus.ACTIVE);
+        log.info("Plano de saude reativado: id={}", id);
+        return insurancePlanMapper.toResponse(entity);
+    }
+
+    @Override
     public InsurancePlan getEntityOrThrow(UUID id) {
         return insurancePlanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plano de saude", "id", id));

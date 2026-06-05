@@ -76,6 +76,15 @@ public class OrganizationServiceImpl implements OrganizationService {
     }
 
     @Override
+    @Transactional
+    public OrganizationResponse activate(UUID id) {
+        Organization entity = getEntityOrThrow(id);
+        entity.setStatus(RecordStatus.ACTIVE);
+        log.info("Organizacao reativada: id={}", id);
+        return organizationMapper.toResponse(entity);
+    }
+
+    @Override
     public Organization getEntityOrThrow(UUID id) {
         return organizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizacao", "id", id));

@@ -72,6 +72,15 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    @Transactional
+    public PatientResponse activate(UUID id) {
+        Patient entity = getEntityOrThrow(id);
+        entity.setStatus(RecordStatus.ACTIVE);
+        log.info("Paciente reativado: id={}", id);
+        return patientMapper.toResponse(entity);
+    }
+
+    @Override
     public Patient getEntityOrThrow(UUID id) {
         return patientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente", "id", id));

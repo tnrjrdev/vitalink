@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -72,5 +73,12 @@ public class PatientController {
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
         patientService.deactivate(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reativa um paciente inativado (apenas ADMIN)")
+    public ResponseEntity<PatientResponse> activate(@PathVariable UUID id) {
+        return ResponseEntity.ok(patientService.activate(id));
     }
 }

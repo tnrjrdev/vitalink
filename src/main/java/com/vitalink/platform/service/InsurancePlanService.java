@@ -19,5 +19,7 @@ public interface InsurancePlanService {
 
     void deactivate(UUID id);
 
+    InsurancePlanResponse activate(UUID id);
+
     InsurancePlan getEntityOrThrow(UUID id);
 }
