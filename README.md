@@ -43,11 +43,6 @@ regras de negócio reais (sem _overbooking_, máquina de estados de status, etc.
 | Infra | **Docker**, **Docker Compose** |
 | Produtividade | **Lombok** |
 
-> **Nota sobre versões:** os requisitos originais pediam "Java 11 + Spring Boot 3",
-> combinação tecnicamente impossível (o Spring Boot 3 exige Java 17+ e usa
-> `jakarta.*`). Optou-se por **manter o Java 11 com Spring Boot 2.7.18** (último da
-> linha 2.7). Recomenda-se planejar a migração para Spring Boot 3 / Java 17+ no
-> roadmap, pois o suporte OSS da linha 2.7 já foi encerrado.
 
 ---
 
