@@ -1,11 +1,11 @@
-package com.vitalink.platform.config;
+package com.medico.platform.config;
 
-import com.vitalink.platform.entity.Role;
-import com.vitalink.platform.entity.User;
-import com.vitalink.platform.entity.enums.RoleName;
-import com.vitalink.platform.entity.enums.UserStatus;
-import com.vitalink.platform.repository.RoleRepository;
-import com.vitalink.platform.repository.UserRepository;
+import com.medico.platform.entity.Role;
+import com.medico.platform.entity.User;
+import com.medico.platform.entity.enums.RoleName;
+import com.medico.platform.entity.enums.UserStatus;
+import com.medico.platform.repository.RoleRepository;
+import com.medico.platform.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,24 +15,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 
+/**
+ * cria o usuario administrador inicial na primeira inicializacao, caso ainda
+ * nao exista. A senha e gerada com BCrypt em runtime (por isso nao fica na
+ * migration Flyway). Idempotente: nao recria se ja houver admin.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
-    private static final Map<String, String> ROLES = new LinkedHashMap<>();
-
-    static {
-        ROLES.put(RoleName.ADMIN, "Administrador da plataforma");
-        ROLES.put(RoleName.HOSPITAL, "Gestor de hospital");
-        ROLES.put(RoleName.CLINIC, "Gestor de clinica");
-        ROLES.put(RoleName.INSURER, "Operadora de saude");
-        ROLES.put(RoleName.PROFESSIONAL, "Profissional de saude");
-        ROLES.put(RoleName.PATIENT, "Paciente");
-    }
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -47,15 +40,14 @@ public class DataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        ensureRoles();
-
         if (userRepository.existsByEmailIgnoreCase(adminEmail)) {
             log.info("Usuario administrador ja existe ({}). Seed ignorado.", adminEmail);
             return;
         }
 
         Role adminRole = roleRepository.findByName(RoleName.ADMIN)
-                .orElseThrow(() -> new IllegalStateException("Perfil " + RoleName.ADMIN + " ausente"));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Perfil " + RoleName.ADMIN + " ausente. Verifique a migration V2__seed_roles.sql"));
 
         User admin = User.builder()
                 .email(adminEmail)
@@ -67,14 +59,5 @@ public class DataInitializer implements ApplicationRunner {
 
         userRepository.save(admin);
         log.info("Usuario administrador inicial criado: {}", adminEmail);
-    }
-
-    private void ensureRoles() {
-        ROLES.forEach((name, description) -> {
-            if (roleRepository.findByName(name).isEmpty()) {
-                roleRepository.save(Role.builder().name(name).description(description).build());
-                log.info("Perfil criado: {}", name);
-            }
-        });
     }
 }

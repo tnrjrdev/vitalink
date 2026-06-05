@@ -144,6 +144,40 @@ O **usuário administrador inicial** é criado no _boot_ (e-mail e senha vêm da
 variáveis `APP_ADMIN_EMAIL` / `APP_ADMIN_PASSWORD`; padrão
 `admin@medico.com` / `ChangeMe@123`).
 
+### Opção C — H2 em memória (sem banco/Docker)
+
+Para subir rapidamente, sem instalar PostgreSQL nem Docker, use o profile `h2`
+(banco **em memória**, recriado a cada inicialização):
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=h2
+# ou, com o jar já empacotado:
+java -jar target/medico-platform.jar --spring.profiles.active=h2
+```
+
+- Console web do H2: **http://localhost:8080/h2-console**
+  (JDBC URL: `jdbc:h2:mem:vitalink`, usuário `sa`, senha em branco).
+- Neste profile o **Flyway é desativado** e o schema é gerado pelo Hibernate
+  (`ddl-auto=create-drop`); perfis e admin são criados pelo `DataInitializer`.
+- Indicado **apenas para desenvolvimento/testes manuais** — os dados são
+  voláteis. Para algo próximo de produção, use PostgreSQL.
+
+### Como escolher o banco
+
+A seleção é feita pelo **profile ativo** (`SPRING_PROFILES_ACTIVE`):
+
+| Profile | Banco | Schema | Quando usar |
+|---|---|---|---|
+| `dev` (padrão) | PostgreSQL local | Flyway | Desenvolvimento com banco real |
+| `prod` | PostgreSQL (env vars) | Flyway | Produção/AWS |
+| `h2` | H2 em memória | Hibernate | Subir rápido, sem dependências |
+
+```bash
+# Exemplos
+SPRING_PROFILES_ACTIVE=h2   java -jar target/medico-platform.jar
+SPRING_PROFILES_ACTIVE=dev  java -jar target/medico-platform.jar
+```
+
 ---
 
 ## Variáveis de ambiente

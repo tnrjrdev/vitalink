@@ -1,12 +1,10 @@
-package com.vitalink.platform.security;
+package com.medico.platform.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -25,12 +23,24 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * configuracao central de seguranca.
+ *
+ * <ul>
+ *   <li>Autenticacao stateless via JWT (sem sessao/cookie).</li>
+ *   <li>Autorizacao por perfil (RBAC) - granular via {@code @PreAuthorize}.</li>
+ *   <li>Senhas com BCrypt.</li>
+ *   <li>Endpoints publicos restritos a auth, documentacao e health.</li>
+ *   <li>CORS controlado por configuracao.</li>
+ * </ul>
+ */
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @EnableConfigurationProperties(JwtProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
             "/v3/api-docs/**",
@@ -44,41 +54,31 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
-    private final Environment environment;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        boolean h2Profile = environment.acceptsProfiles(Profiles.of("h2"));
-
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // API stateless com JWT: CSRF nao se aplica
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                .authorizeRequests(auth -> {
-                    auth.antMatchers(PUBLIC_ENDPOINTS).permitAll()
-                            .antMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-                    if (h2Profile) {
-                        auth.antMatchers("/h2-console/**").permitAll();
-                    }
-                    auth.anyRequest().authenticated();
-                })
+                .authorizeRequests(auth -> auth
+                        .antMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        if (h2Profile) {
-            http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
-        }
 
         return http.build();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+        // strength 12: bom equilibrio entre custo e seguranca para 2025+
         return new BCryptPasswordEncoder(12);
     }
 
