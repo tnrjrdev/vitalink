@@ -274,6 +274,7 @@ health) exigem `Authorization: Bearer <token>`.
 | `GET` | `/{id}` | autenticado | Busca por id |
 | `GET` | `/?type=HOSPITAL` | autenticado | Lista (filtro opcional por tipo) |
 | `DELETE` | `/{id}` | ADMIN | Inativa (soft-delete) |
+| `PATCH` | `/{id}/activate` | ADMIN | Reativa |
 
 ### Profissionais — `/api/v1/professionals`
 
@@ -284,6 +285,7 @@ health) exigem `Authorization: Bearer <token>`.
 | `GET` | `/{id}` | autenticado | Busca por id |
 | `GET` | `/?organizationId=...` | autenticado | Lista (filtro opcional por organização) |
 | `DELETE` | `/{id}` | ADMIN, HOSPITAL, CLINIC | Inativa |
+| `PATCH` | `/{id}/activate` | ADMIN, HOSPITAL, CLINIC | Reativa |
 
 ### Pacientes — `/api/v1/patients`
 
@@ -294,6 +296,7 @@ health) exigem `Authorization: Bearer <token>`.
 | `GET` | `/{id}` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Busca por id |
 | `GET` | `/` | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Lista paginada |
 | `DELETE` | `/{id}` | ADMIN | Inativa |
+| `PATCH` | `/{id}/activate` | ADMIN | Reativa |
 
 ### Planos de saúde — `/api/v1/insurance-plans`
 
@@ -304,6 +307,7 @@ health) exigem `Authorization: Bearer <token>`.
 | `GET` | `/{id}` | autenticado | Busca por id |
 | `GET` | `/?operatorId=...` | autenticado | Lista (filtro opcional por operadora) |
 | `DELETE` | `/{id}` | ADMIN, INSURER | Inativa |
+| `PATCH` | `/{id}/activate` | ADMIN, INSURER | Reativa |
 
 ### Consultas — `/api/v1/appointments`
 
