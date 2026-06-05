@@ -1,0 +1,80 @@
+@startuml VitaLink - Arquitetura em camadas
+' Visao geral da arquitetura do VitaLink (camadas empilhadas, fluxo de cima para baixo).
+' Renderize em https://www.plantuml.com/plantuml ou no plugin PlantUML (VS Code / IntelliJ).
+
+top to bottom direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam component {
+  BackgroundColor #FDFDC4
+  BorderColor Black
+}
+skinparam package {
+  BackgroundColor #F4F4F4
+  BorderColor #888888
+  FontStyle bold
+}
+skinparam database {
+  BackgroundColor #FDFDC4
+  BorderColor Black
+}
+skinparam ArrowColor #333333
+
+actor "Cliente\n(Swagger / Postman / Front-end)" as cli
+
+package "1 · Seguranca  (JWT + RBAC)" as L1 {
+  component "SecurityConfig   ·   JwtAuthenticationFilter\nJwtTokenProvider   ·   CustomUserDetailsService\nEntryPoint (401)   ·   AccessDeniedHandler (403)" as sec
+}
+
+package "2 · Controllers  (REST  /api/v1)" as L2 {
+  component "AuthController · UserController · OrganizationController\nProfessionalController · PatientController\nInsurancePlanController · AppointmentController" as controllers
+}
+
+package "3 · Services  (regras de negocio)" as L3 {
+  component "AuthService · UserService · OrganizationService\nProfessionalService · PatientService · InsurancePlanService\nAppointmentService  (anti-overbooking, maquina de estados)" as services
+}
+
+package "4 · Repositories  (Spring Data JPA)" as L4 {
+  component "UserRepository · RoleRepository · OrganizationRepository\nHealthcareProfessionalRepository · PatientRepository\nInsurancePlanRepository · AppointmentRepository" as repos
+}
+
+package "5 · Entidades + Enums  (JPA)" as L5 {
+  component "BaseEntity (id · auditoria · versao)\nUser · Role · Organization · HealthcareProfessional\nPatient · InsurancePlan · Appointment\nAddress «embeddable» · Enums (status / tipos)" as entities
+}
+
+database "Banco de dados\nPostgreSQL  (dev/prod · schema via Flyway)\nH2 in-memory  (perfil h2 · schema via Hibernate)" as db
+
+' ---------------- Espinha vertical (fluxo principal) ----------------
+cli       -down->  sec          : HTTP + Bearer JWT
+sec       -down->  controllers  : requisicao autenticada
+controllers -down-> services    : delega (sem regra de negocio)
+services  -down->  repos        : consulta / persiste
+repos     -down->  entities     : mapeia ORM
+repos     -down->  db           : SQL
+
+' ---------------- Camadas transversais (laterais) ----------------
+package "DTO + Mapper" as SR {
+  component "Request / Response DTOs\nMappers (entity <-> DTO)" as dtomap
+}
+controllers -right-> dtomap : recebe / retorna
+services    -right-> dtomap : converte
+
+package "Common" as SL {
+  component "GlobalExceptionHandler (@RestControllerAdvice)\nApiError · PageResponse · Excecoes de negocio" as commonc
+}
+commonc -right-> controllers : trata excecoes (respostas padronizadas)
+
+package "Config" as SC {
+  component "OpenApiConfig (Swagger) · AppConfig (Clock)\nJpaAuditingConfig (createdAt/By...)\nDataInitializer (seed roles + admin)" as configc
+}
+configc -up-> entities : preenche auditoria
+configc -left-> repos  : carga inicial
+cli -right-> configc   : /swagger-ui.html
+
+legend bottom
+  Fluxo:  Cliente  ->  Seguranca (JWT)  ->  Controller  ->  Service  ->  Repository  ->  Banco
+  A regra de negocio vive APENAS na camada Service (controllers sao finos).
+  Seguranca (JWT/RBAC), tratamento de erros e auditoria sao preocupacoes transversais.
+endlegend
+
+@enduml
