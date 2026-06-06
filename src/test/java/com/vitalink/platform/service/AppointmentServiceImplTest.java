@@ -50,6 +50,8 @@ class AppointmentServiceImplTest {
     @Mock private ProfessionalService professionalService;
     @Mock private OrganizationService organizationService;
     @Mock private InsurancePlanService insurancePlanService;
+    @Mock private EmailService emailService;
+    @Mock private EventPublisher eventPublisher;
 
     private AppointmentServiceImpl service;
 
@@ -62,7 +64,8 @@ class AppointmentServiceImplTest {
         Clock fixedClock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         service = new AppointmentServiceImpl(
                 appointmentRepository, patientService, professionalService,
-                organizationService, insurancePlanService, new AppointmentMapper(), fixedClock);
+                organizationService, insurancePlanService, new AppointmentMapper(), fixedClock,
+                emailService, eventPublisher);
 
         patient = Patient.builder().fullName("Joao").status(RecordStatus.ACTIVE).build();
         patient.setId(UUID.randomUUID());

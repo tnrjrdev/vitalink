@@ -29,6 +29,11 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+  servlet:
+    multipart:
+      max-file-size: ${APP_MAX_FILE_SIZE:10MB}
+      max-request-size: ${APP_MAX_REQUEST_SIZE:15MB}
+
 server:
   port: ${APP_PORT:8080}
   error:
@@ -50,6 +55,25 @@ app:
     password: ${APP_ADMIN_PASSWORD:ChangeMe@123}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  # --- Integracao AWS (desligada por padrao; app sobe no H2 sem credencial) ---
+  aws:
+    enabled: ${APP_AWS_ENABLED:false}
+    region: ${APP_AWS_REGION:us-east-1}
+    access-key: ${APP_AWS_ACCESS_KEY:}
+    secret-key: ${APP_AWS_SECRET_KEY:}
+    s3:
+      bucket: ${APP_AWS_S3_BUCKET:vitalink-documents}
+      presigned-url-expiration-minutes: ${APP_AWS_S3_PRESIGN_MINUTES:15}
+    ses:
+      from: ${APP_AWS_SES_FROM:no-reply@vitalink.com}
+    sns:
+      appointment-topic-arn: ${APP_AWS_SNS_APPOINTMENT_TOPIC_ARN:}
+    sqs:
+      consumer-enabled: ${APP_AWS_SQS_CONSUMER_ENABLED:false}
+      appointment-queue-url: ${APP_AWS_SQS_APPOINTMENT_QUEUE_URL:}
+      max-messages: ${APP_AWS_SQS_MAX_MESSAGES:10}
+      wait-time-seconds: ${APP_AWS_SQS_WAIT_SECONDS:10}
+      poll-delay-ms: ${APP_AWS_SQS_POLL_DELAY_MS:5000}
 
 # --- Actuator: expoe apenas o essencial ---
 management:
