@@ -429,7 +429,7 @@ privado e o download acontece por **URL pré-assinada** (presigned URL), sem exp
 bucket publicamente.
 
 ![Endpoints de Documentos no Swagger](integracao-aws/images/swagger-documentos.png)
-![Bucket S3 com os documentos](integracao-aws/images/s3-bucket.png)
+![Bucket S3 com os documentos](integracao-aws/images/S3-bucket.png)
 
 ### SES — E-mail transacional
 Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
