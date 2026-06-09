@@ -436,7 +436,7 @@ Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
 verificado no SES).
 
 ![Identidade verificada no SES](integracao-aws/images/ses-verified.png)
-![E-mail de confirmação recebido](docs/images/ses-email.png)
+![E-mail de confirmação recebido](integracao-aws/images/ses-email.png)
 
 ### SNS + SQS — Eventos de domínio
 O agendamento publica um evento no tópico **SNS**, que faz _fan-out_ para uma fila
