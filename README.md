@@ -428,8 +428,8 @@ Upload via `POST /api/v1/documents` (multipart). O arquivo é gravado no bucket
 privado e o download acontece por **URL pré-assinada** (presigned URL), sem expor o
 bucket publicamente.
 
-![Endpoints de Documentos no Swagger](docs/images/swagger-documentos.png)
-![Bucket S3 com os documentos](docs/images/s3-bucket.png)
+![Endpoints de Documentos no Swagger](integracao-aws/images/swagger-documentos.png)
+![Bucket S3 com os documentos](integracao-aws/images/S3-bucket.png)
 
 ### SES — E-mail transacional
 Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
@@ -443,7 +443,7 @@ O agendamento publica um evento no tópico **SNS**, que faz _fan-out_ para uma f
 **SQS** consumida pela aplicação (`SqsEventConsumer`). Eventos:
 `appointment.scheduled` / `appointment.confirmed` / `appointment.cancelled`.
 
-![Tópico SNS de eventos de consulta](docs/images/sns-topic.png)
+![Tópico SNS de eventos de consulta](integracao-aws/images/sns-topic.png)
 
 Trecho dos logs mostrando o fluxo ponta a ponta (publicação no SNS + consumo no SQS):
 
