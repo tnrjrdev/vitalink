@@ -2,8 +2,8 @@
 set -uo pipefail
 
 REGION='us-east-1'
-SUFFIX='seunome'
-SES_EMAIL='troque@seu-email.com'
+SUFFIX='tary'
+SES_EMAIL='tary.junior47@gmail.com'
 
 BUCKET="vitalink-documents-${SUFFIX}"
 TOPIC='vitalink-appointments'

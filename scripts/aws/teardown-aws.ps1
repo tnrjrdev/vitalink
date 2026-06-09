@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Continue'
 
 $Region   = 'us-east-1'
-$Suffix   = 'seunome'
-$SesEmail = 'troque@seu-email.com'
+$Suffix   = 'tary'
+$SesEmail = 'tary.junior47@gmail.com'
 
 $Bucket  = "vitalink-documents-$Suffix"
 $Topic   = 'vitalink-appointments'
