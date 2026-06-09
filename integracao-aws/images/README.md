@@ -11,6 +11,7 @@ do README principal aponta para eles):
 | `ses-verified.png` | Identidade verificada (status "Verificado") | Console AWS -> SES -> Identidades |
 | `s3-bucket.png` | Bucket `vitalink-documents-*` (ou o objeto enviado dentro dele) | Console AWS -> S3 |
 | `sns-topic.png` | Tópico `vitalink-appointments` | Console AWS -> SNS -> Tópicos |
+| `sqs-queue.png` | Fila `vitalink-appointments-queue` (inscrita no tópico) | Console AWS -> SQS -> Filas |
 | `iam-user.png` | Usuário `vitalink-app` (least-privilege) | Console AWS -> IAM -> Usuários |
 
 ## Antes de commitar — checklist de seguranca

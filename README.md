@@ -428,22 +428,23 @@ Upload via `POST /api/v1/documents` (multipart). O arquivo é gravado no bucket
 privado e o download acontece por **URL pré-assinada** (presigned URL), sem expor o
 bucket publicamente.
 
-![Endpoints de Documentos no Swagger](docs/images/swagger-documentos.png)
-![Bucket S3 com os documentos](docs/images/s3-bucket.png)
+![Endpoints de Documentos no Swagger](integracao-aws/images/swagger-documentos.png)
+![Bucket S3 com os documentos](integracao-aws/images/s3-bucket.png)
 
 ### SES — E-mail transacional
 Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
 verificado no SES).
 
-![Identidade verificada no SES](docs/images/ses-verified.png)
-![E-mail de confirmação recebido](docs/images/ses-email.png)
+![Identidade verificada no SES](integracao-aws/images/ses-verified.png)
+![E-mail de confirmação recebido](integracao-aws/images/ses-email.png)
 
 ### SNS + SQS — Eventos de domínio
 O agendamento publica um evento no tópico **SNS**, que faz _fan-out_ para uma fila
 **SQS** consumida pela aplicação (`SqsEventConsumer`). Eventos:
 `appointment.scheduled` / `appointment.confirmed` / `appointment.cancelled`.
 
-![Tópico SNS de eventos de consulta](docs/images/sns-topic.png)
+![Tópico SNS de eventos de consulta](integracao-aws/images/sns-topic.png)
+![Fila SQS inscrita no tópico (fan-out SNS → SQS)](integracao-aws/images/sqs-queue.png)
 
 Trecho dos logs mostrando o fluxo ponta a ponta (publicação no SNS + consumo no SQS):
 
@@ -456,7 +457,7 @@ INFO  c.v.p.messaging.SqsEventConsumer      - Evento recebido da fila SQS: id=..
 A aplicação usa um usuário IAM dedicado, com política de **menor privilégio**
 (apenas as ações de S3/SES/SNS/SQS/SSM efetivamente utilizadas).
 
-![Usuário IAM da aplicação](docs/images/iam-user.png)
+![Usuário IAM da aplicação](integracao-aws/images/iam-user.png)
 
 ---
 
