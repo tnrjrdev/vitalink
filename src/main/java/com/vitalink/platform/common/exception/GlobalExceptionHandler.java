@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
@@ -90,6 +91,20 @@ public class GlobalExceptionHandler {
                 .fieldErrors(fieldErrors)
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex, WebRequest request) {
+        log.warn("Upload rejeitado: arquivo excede o tamanho maximo permitido");
+        return build(HttpStatus.PAYLOAD_TOO_LARGE,
+                "O arquivo enviado excede o tamanho maximo permitido.", request);
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ApiError> handleStorage(StorageException ex, WebRequest request) {
+        log.error("Falha no armazenamento de arquivos: {}", ex.getMessage(), ex);
+        return build(HttpStatus.BAD_GATEWAY,
+                "Falha ao processar o arquivo no servico de armazenamento. Tente novamente mais tarde.", request);
     }
 
     @ExceptionHandler(Exception.class)

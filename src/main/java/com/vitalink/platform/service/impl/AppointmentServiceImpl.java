@@ -14,9 +14,13 @@ import com.vitalink.platform.entity.Organization;
 import com.vitalink.platform.entity.Patient;
 import com.vitalink.platform.entity.enums.AppointmentStatus;
 import com.vitalink.platform.entity.enums.RecordStatus;
+import com.vitalink.platform.integration.DomainEvent;
+import com.vitalink.platform.integration.EmailMessage;
 import com.vitalink.platform.mapper.AppointmentMapper;
 import com.vitalink.platform.repository.AppointmentRepository;
 import com.vitalink.platform.service.AppointmentService;
+import com.vitalink.platform.service.EmailService;
+import com.vitalink.platform.service.EventPublisher;
 import com.vitalink.platform.service.InsurancePlanService;
 import com.vitalink.platform.service.OrganizationService;
 import com.vitalink.platform.service.PatientService;
@@ -49,6 +53,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final InsurancePlanService insurancePlanService;
     private final AppointmentMapper appointmentMapper;
     private final Clock clock;
+    private final EmailService emailService;
+    private final EventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -83,6 +89,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment = appointmentRepository.save(appointment);
         log.info("Consulta agendada: id={}, profissional={}, inicio={}",
                 appointment.getId(), professional.getId(), appointment.getScheduledStart());
+
+        publishAppointmentEvent("appointment.scheduled", appointment);
+        sendAppointmentEmail(appointment, "Consulta agendada",
+                "Sua consulta foi agendada para " + appointment.getScheduledStart() + ".");
+
         return appointmentMapper.toResponse(appointment);
     }
 
@@ -127,6 +138,15 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setNotes(request.getNotes());
         }
         log.info("Status da consulta alterado: id={}, {} -> {}", id, current, target);
+
+        if (target == AppointmentStatus.CANCELLED) {
+            publishAppointmentEvent("appointment.cancelled", appointment);
+            sendAppointmentEmail(appointment, "Consulta cancelada",
+                    "Sua consulta agendada para " + appointment.getScheduledStart() + " foi cancelada.");
+        } else if (target == AppointmentStatus.CONFIRMED) {
+            publishAppointmentEvent("appointment.confirmed", appointment);
+        }
+
         return appointmentMapper.toResponse(appointment);
     }
 
@@ -187,5 +207,28 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (status != RecordStatus.ACTIVE) {
             throw new BusinessException(actor + " esta inativo e nao pode participar de uma consulta");
         }
+    }
+
+    private void publishAppointmentEvent(String type, Appointment appointment) {
+        eventPublisher.publish(DomainEvent.builder()
+                .type(type)
+                .attribute("appointmentId", String.valueOf(appointment.getId()))
+                .attribute("patientId", String.valueOf(appointment.getPatient().getId()))
+                .attribute("professionalId", String.valueOf(appointment.getProfessional().getId()))
+                .attribute("scheduledStart", String.valueOf(appointment.getScheduledStart()))
+                .attribute("status", appointment.getStatus().name())
+                .build());
+    }
+
+    private void sendAppointmentEmail(Appointment appointment, String subject, String body) {
+        String to = appointment.getPatient().getEmail();
+        if (to == null || to.isBlank()) {
+            return;
+        }
+        emailService.send(EmailMessage.builder()
+                .to(to)
+                .subject(subject)
+                .body("Ola " + appointment.getPatient().getFullName() + ",\n\n" + body)
+                .build());
     }
 }

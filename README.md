@@ -21,6 +21,8 @@ regras de negócio reais (sem _overbooking_, máquina de estados de status, etc.
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [Fluxo de autenticação](#fluxo-de-autenticação)
 - [Endpoints](#endpoints)
+- [Integrações AWS](#integrações-aws)
+- [Demonstração das integrações AWS](#demonstração-das-integrações-aws)
 - [Documentação interativa (Swagger)](#documentação-interativa-swagger)
 - [Testes e cobertura](#testes-e-cobertura)
 - [Decisões técnicas](#decisões-técnicas)
@@ -40,6 +42,7 @@ regras de negócio reais (sem _overbooking_, máquina de estados de status, etc.
 | Documentação | **springdoc-openapi 1.7** (Swagger UI / OpenAPI 3) |
 | Build | **Maven** |
 | Testes | **JUnit 5**, **Mockito**, **Testcontainers**, **JaCoCo** |
+| Nuvem | **AWS SDK for Java v2** (S3, SES, SNS, SQS, Secrets Manager, SSM) |
 | Infra | **Docker**, **Docker Compose** |
 | Produtividade | **Lombok** |
 
@@ -60,7 +63,9 @@ com.vitalink.platform
 ├── dto/            # Objetos de transferência (request/response) por contexto
 ├── mapper/         # Conversão entity <-> DTO
 ├── security/       # JWT, filtros, UserDetails, configuração de segurança
-├── config/         # OpenAPI, auditoria JPA, seed inicial, beans utilitários
+├── config/         # OpenAPI, auditoria JPA, seed inicial, clientes AWS, beans
+├── integration/    # Value objects de integração (EmailMessage, DomainEvent)
+├── messaging/      # Consumidor SQS (subscriber dos eventos de domínio)
 └── common/         # BaseEntity, Address, exceções e tratamento global
 ```
 
@@ -320,7 +325,138 @@ health) exigem `Authorization: Bearer <token>`.
 | `GET` | `/patient/{patientId}` | autenticado | Lista por paciente |
 | `GET` | `/professional/{professionalId}` | autenticado | Lista por profissional |
 
+### Documentos — `/api/v1/documents`
+
+Upload e download de documentos clínicos (exames, laudos, prescrições) — armazenados no **S3** (ou em disco local quando a AWS está desabilitada). Veja [Integrações AWS](#integrações-aws).
+
+| Método | Caminho | Perfis | Descrição |
+|---|---|---|---|
+| `POST` | `/` (`multipart/form-data`) | ADMIN, HOSPITAL, CLINIC, PROFESSIONAL | Faz upload e associa a um paciente |
+| `GET` | `/{id}` | autenticado | Metadados + **URL de download pré-assinada** |
+| `GET` | `/?patientId=...` | autenticado | Lista documentos de um paciente |
+| `GET` | `/{id}/download` | autenticado | Redireciona (302) para a URL pré-assinada |
+| `DELETE` | `/{id}` | ADMIN, HOSPITAL, CLINIC | Remove (arquivo no storage + metadados) |
+
+O upload usa _form fields_: `file` (obrigatório), `patientId` (obrigatório),
+`appointmentId` e `description` (opcionais).
+
 Paginação: parâmetros `page`, `size` e `sort` em todos os endpoints de listagem.
+
+---
+
+## Integrações AWS
+
+A plataforma integra quatro serviços da AWS, todos opcionais e **desligados por
+padrão** (`APP_AWS_ENABLED=false`) — a aplicação sobe normalmente no H2/PostgreSQL
+**sem nenhuma credencial**. Quando a AWS está desabilitada, adaptadores locais
+substituem cada serviço (gravação em disco temporário e _logs_), permitindo
+desenvolver e testar todo o fluxo sem conta na nuvem.
+
+| Serviço AWS | Para quê | Quando `enabled=true` | Quando `enabled=false` (default) |
+|---|---|---|---|
+| **S3** | Documentos clínicos (exames, laudos, prescrições) | `S3FileStorageService` (upload + URL pré-assinada) | `LocalFileStorageService` (disco temporário) |
+| **SES** | E-mails transacionais (agendamento/cancelamento de consulta) | `SesEmailService` | `LogEmailService` (registra em log) |
+| **SNS / SQS** | Eventos de domínio (`appointment.scheduled/cancelled/confirmed`) | `SnsEventPublisher` publica; `SqsEventConsumer` consome | `LogEventPublisher` (registra em log) |
+| **Secrets Manager / SSM** | Carregar segredos (JWT, senha do banco) no _boot_ | `AwsSecretsEnvironmentPostProcessor` | Usa valores do `.env`/ambiente |
+
+### Desenho (Ports & Adapters)
+
+Cada integração é uma **porta** (interface em `service/`) com dois **adaptadores**
+selecionados por configuração via `@ConditionalOnProperty(app.aws.enabled)`:
+
+```
+FileStorageService ──┬─ S3FileStorageService     (app.aws.enabled=true)
+                     └─ LocalFileStorageService  (default)
+EmailService       ──┬─ SesEmailService          (app.aws.enabled=true)
+                     └─ LogEmailService          (default)
+EventPublisher     ──┬─ SnsEventPublisher        (app.aws.enabled=true)
+                     └─ LogEventPublisher        (default)
+```
+
+Os clientes do SDK (AWS SDK **v2**) são criados em `config/AwsClientConfig`, também
+condicionados a `app.aws.enabled`. As credenciais usam a cadeia padrão da AWS
+(_environment_, perfil, **IAM Role**) — ou chaves estáticas se informadas. Os
+efeitos colaterais (e-mail/evento) são **não-fatais**: uma falha na AWS é
+registrada em log e **não** quebra a operação de negócio principal.
+
+### Fluxo de eventos (SNS → SQS)
+
+Ao agendar, cancelar ou confirmar uma consulta, o `AppointmentService` publica um
+evento no **tópico SNS**. Com o _fan-out_ SNS → **fila SQS** configurado, o
+`SqsEventConsumer` faz _long polling_ agendado e processa cada mensagem (ponto de
+extensão para notificações, projeções, etc.). O consumidor só é ativado com
+`APP_AWS_SQS_CONSUMER_ENABLED=true`.
+
+### Habilitando a AWS
+
+1. Crie os recursos na sua conta: **bucket S3**, **identidade verificada no SES**,
+   **tópico SNS** e (opcional) **fila SQS** inscrita no tópico.
+2. Defina as variáveis no `.env` (veja a tabela abaixo) e `APP_AWS_ENABLED=true`.
+3. Em produção, prefira **IAM Role** (deixe `APP_AWS_ACCESS_KEY`/`SECRET_KEY` em
+   branco) em vez de chaves estáticas.
+
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `APP_AWS_ENABLED` | Liga/desliga toda a integração AWS | `false` |
+| `APP_AWS_REGION` | Região dos serviços | `us-east-1` |
+| `APP_AWS_ACCESS_KEY` / `APP_AWS_SECRET_KEY` | Chaves estáticas (deixe vazio p/ usar IAM Role) | _vazio_ |
+| `APP_AWS_S3_BUCKET` | Bucket dos documentos | `vitalink-documents` |
+| `APP_AWS_S3_PRESIGN_MINUTES` | Validade da URL pré-assinada (min) | `15` |
+| `APP_AWS_SES_FROM` | Remetente verificado no SES | `no-reply@vitalink.com` |
+| `APP_AWS_SNS_APPOINTMENT_TOPIC_ARN` | ARN do tópico de eventos de consulta | _vazio_ |
+| `APP_AWS_SQS_CONSUMER_ENABLED` | Ativa o consumidor da fila | `false` |
+| `APP_AWS_SQS_APPOINTMENT_QUEUE_URL` | URL da fila SQS | _vazio_ |
+| `APP_AWS_SECRETS_ENABLED` + `APP_AWS_SECRET_NAME` | Carrega segredo (JSON) do Secrets Manager no boot | `false` |
+| `APP_AWS_SSM_ENABLED` + `APP_AWS_SSM_PARAMETER_PATH` | Carrega parâmetros do SSM por _path_ no boot | `false` |
+| `APP_MAX_FILE_SIZE` / `APP_MAX_REQUEST_SIZE` | Limites de upload (multipart) | `10MB` / `15MB` |
+
+> **Segredos no boot:** com `APP_AWS_SECRETS_ENABLED=true`, o
+> `AwsSecretsEnvironmentPostProcessor` lê um segredo JSON (ex.: `{"APP_JWT_SECRET":
+> "...","SPRING_DATASOURCE_PASSWORD":"..."}`) **antes** de o contexto subir e o
+> expõe como _property source_ de alta prioridade — assim nada sensível precisa
+> ficar no `.env` em produção. Qualquer falha é tolerada (cai nos defaults locais).
+
+---
+
+## Demonstração das integrações AWS
+
+> Evidências capturadas com a aplicação rodando conectada à **AWS real** (Free Tier,
+> região `us-east-1`). Recursos provisionados via [`scripts/aws/setup-aws.sh`](scripts/aws/setup-aws.sh).
+
+### S3 — Documentos clínicos
+Upload via `POST /api/v1/documents` (multipart). O arquivo é gravado no bucket
+privado e o download acontece por **URL pré-assinada** (presigned URL), sem expor o
+bucket publicamente.
+
+![Endpoints de Documentos no Swagger](integracao-aws/images/swagger-documentos.png)
+![Bucket S3 com os documentos](integracao-aws/images/S3-bucket.png)
+
+### SES — E-mail transacional
+Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
+verificado no SES).
+
+![Identidade verificada no SES](integracao-aws/images/ses-verified.png)
+![E-mail de confirmação recebido](integracao-aws/images/ses-email.png)
+
+### SNS + SQS — Eventos de domínio
+O agendamento publica um evento no tópico **SNS**, que faz _fan-out_ para uma fila
+**SQS** consumida pela aplicação (`SqsEventConsumer`). Eventos:
+`appointment.scheduled` / `appointment.confirmed` / `appointment.cancelled`.
+
+![Tópico SNS de eventos de consulta](integracao-aws/images/sns-topic.png)
+
+Trecho dos logs mostrando o fluxo ponta a ponta (publicação no SNS + consumo no SQS):
+
+```text
+INFO  c.v.p.service.impl.SnsEventPublisher  - Evento publicado no SNS: type=appointment.scheduled, topic=arn:aws:sns:us-east-1:***:vitalink-appointments
+INFO  c.v.p.messaging.SqsEventConsumer      - Evento recebido da fila SQS: id=..., body={"appointmentId":"...","status":"SCHEDULED"}
+```
+
+### Segurança — IAM least-privilege
+A aplicação usa um usuário IAM dedicado, com política de **menor privilégio**
+(apenas as ações de S3/SES/SNS/SQS/SSM efetivamente utilizadas).
+
+![Usuário IAM da aplicação](integracao-aws/images/iam-user.png)
 
 ---
 
@@ -346,7 +482,8 @@ mvn test
 mvn verify
 ```
 
-- **75 testes** (unitários + integração).
+- **99 testes** (unitários + integração), incluindo os adaptadores AWS
+  (clientes do SDK mockados via Mockito — não exigem AWS nem LocalStack).
 - Os testes de **integração** sobem um **PostgreSQL real via Testcontainers**
   (paridade com produção; o Flyway roda as migrations no container) — exigem
   **Docker** em execução.
