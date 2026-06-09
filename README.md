@@ -22,6 +22,7 @@ regras de negócio reais (sem _overbooking_, máquina de estados de status, etc.
 - [Fluxo de autenticação](#fluxo-de-autenticação)
 - [Endpoints](#endpoints)
 - [Integrações AWS](#integrações-aws)
+- [Demonstração das integrações AWS](#demonstração-das-integrações-aws)
 - [Documentação interativa (Swagger)](#documentação-interativa-swagger)
 - [Testes e cobertura](#testes-e-cobertura)
 - [Decisões técnicas](#decisões-técnicas)
@@ -414,6 +415,48 @@ extensão para notificações, projeções, etc.). O consumidor só é ativado c
 > "...","SPRING_DATASOURCE_PASSWORD":"..."}`) **antes** de o contexto subir e o
 > expõe como _property source_ de alta prioridade — assim nada sensível precisa
 > ficar no `.env` em produção. Qualquer falha é tolerada (cai nos defaults locais).
+
+---
+
+## Demonstração das integrações AWS
+
+> Evidências capturadas com a aplicação rodando conectada à **AWS real** (Free Tier,
+> região `us-east-1`). Recursos provisionados via [`scripts/aws/setup-aws.sh`](scripts/aws/setup-aws.sh).
+
+### S3 — Documentos clínicos
+Upload via `POST /api/v1/documents` (multipart). O arquivo é gravado no bucket
+privado e o download acontece por **URL pré-assinada** (presigned URL), sem expor o
+bucket publicamente.
+
+![Endpoints de Documentos no Swagger](docs/images/swagger-documentos.png)
+![Bucket S3 com os documentos](docs/images/s3-bucket.png)
+
+### SES — E-mail transacional
+Ao agendar uma consulta, o paciente recebe um e-mail de confirmação (remetente
+verificado no SES).
+
+![Identidade verificada no SES](docs/images/ses-verified.png)
+![E-mail de confirmação recebido](docs/images/ses-email.png)
+
+### SNS + SQS — Eventos de domínio
+O agendamento publica um evento no tópico **SNS**, que faz _fan-out_ para uma fila
+**SQS** consumida pela aplicação (`SqsEventConsumer`). Eventos:
+`appointment.scheduled` / `appointment.confirmed` / `appointment.cancelled`.
+
+![Tópico SNS de eventos de consulta](docs/images/sns-topic.png)
+
+Trecho dos logs mostrando o fluxo ponta a ponta (publicação no SNS + consumo no SQS):
+
+```text
+INFO  c.v.p.service.impl.SnsEventPublisher  - Evento publicado no SNS: type=appointment.scheduled, topic=arn:aws:sns:us-east-1:***:vitalink-appointments
+INFO  c.v.p.messaging.SqsEventConsumer      - Evento recebido da fila SQS: id=..., body={"appointmentId":"...","status":"SCHEDULED"}
+```
+
+### Segurança — IAM least-privilege
+A aplicação usa um usuário IAM dedicado, com política de **menor privilégio**
+(apenas as ações de S3/SES/SNS/SQS/SSM efetivamente utilizadas).
+
+![Usuário IAM da aplicação](docs/images/iam-user.png)
 
 ---
 
