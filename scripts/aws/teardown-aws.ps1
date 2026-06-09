@@ -1,20 +1,8 @@
-<#
-.SYNOPSIS
-  Apaga TODOS os recursos AWS criados pelo setup-aws.ps1 (S3, SES, SNS, SQS, SSM, IAM).
-  Use ao terminar os testes para garantir custo zero.
+$ErrorActionPreference = 'Continue'
 
-.DESCRIPTION
-  Use as MESMAS variaveis do setup-aws.ps1 (Region/Suffix/SesEmail).
-  O script tolera recursos ja inexistentes.
-#>
-
-$ErrorActionPreference = 'Continue'   # segue mesmo se algum recurso ja nao existir
-
-# ============================ AJUSTE AQUI (igual ao setup) ============================
 $Region   = 'us-east-1'
 $Suffix   = 'seunome'
 $SesEmail = 'troque@seu-email.com'
-# =====================================================================================
 
 $Bucket  = "vitalink-documents-$Suffix"
 $Topic   = 'vitalink-appointments'

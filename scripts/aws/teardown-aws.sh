@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-# ===========================================================================
-# Apaga TODOS os recursos criados pelo setup-aws.sh (S3, SES, SNS, SQS, SSM, IAM).
-# Use ao terminar os testes para garantir custo zero. Roda no AWS CloudShell.
-# Use as MESMAS variaveis do setup-aws.sh.
-# ===========================================================================
 set -uo pipefail
 
-# ============================ AJUSTE AQUI (igual ao setup) ============================
 REGION='us-east-1'
 SUFFIX='seunome'
 SES_EMAIL='troque@seu-email.com'
-# =====================================================================================
 
 BUCKET="vitalink-documents-${SUFFIX}"
 TOPIC='vitalink-appointments'
