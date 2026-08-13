@@ -14,12 +14,4 @@ do README principal aponta para eles):
 | `sqs-queue.png` | Fila `vitalink-appointments-queue` (inscrita no tópico) | Console AWS -> SQS -> Filas |
 | `iam-user.png` | Usuário `vitalink-app` (least-privilege) | Console AWS -> IAM -> Usuários |
 
-## Antes de commitar — checklist de seguranca
 
-- [ ] Nenhuma **Secret Key** visível.
-- [ ] Nenhum **Access Key ID** (`AKIA...`) visível — atencao a URLs pre-assinadas (`downloadUrl`).
-- [ ] **Account ID** borrado (canto superior direito e dentro de ARNs).
-- [ ] Sem CPFs/dados pessoais reais (use os ficticios dos exemplos).
-
-> Dica: PNG fica nitido para telas. Mantenha os arquivos abaixo de ~500 KB
-> (recorte só a area relevante) para o repositorio nao inchar.
