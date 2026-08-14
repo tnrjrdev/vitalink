@@ -1,0 +1,135 @@
+.sidebar {
+  width: 260px;
+  height: calc(100vh - 2rem);
+  position: sticky;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border-radius: var(--border-radius-lg);
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-primary-600);
+  margin-bottom: 2.5rem;
+  padding-left: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-header {
+    color: var(--color-primary-400);
+  }
+}
+
+.sidebar-logo-icon {
+  stroke-width: 2.5;
+}
+
+.sidebar-logo-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.sidebar-nav-group {
+  flex: 1;
+}
+
+.sidebar-nav-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--color-neutral-400);
+  margin-bottom: 1rem;
+  padding-left: 0.75rem;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--border-radius-md);
+  color: var(--color-neutral-600);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  font-family: var(--font-family-base);
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-link {
+    color: var(--color-neutral-400);
+  }
+}
+
+.sidebar-link:hover {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-600);
+  transform: translateX(4px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-link:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--color-primary-400);
+  }
+}
+
+.sidebar-link.active {
+  background-color: var(--color-primary-500);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.logout-btn {
+  color: var(--color-danger);
+}
+
+.logout-btn:hover {
+  background-color: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  .logout-btn {
+    color: #f87171;
+  }
+  .logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Responsividade Básica - Em telas muito pequenas o sidebar poderia sumir ou virar drawer */
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none; /* Em uma implementação real completa, faríamos um Drawer no Mobile */
+  }
+}
