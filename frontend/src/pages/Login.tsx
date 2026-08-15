@@ -1,14 +1,40 @@
 import { Activity, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import api from '../services/api';
 import './Login.css';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulando login
-    navigate('/');
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/api/v1/auth/login', {
+        email,
+        password
+      });
+
+      const { accessToken, refreshToken } = response.data;
+      if (accessToken) {
+        localStorage.setItem('token', accessToken);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erro ao realizar login. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,6 +53,12 @@ const Login = () => {
             <p className="login-subtitle">Acesse sua plataforma de gestão integrada em saúde.</p>
           </div>
 
+          {error && (
+            <div style={{ padding: '0.75rem', backgroundColor: '#fee2e2', color: '#ef4444', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+              {error}
+            </div>
+          )}
+
           <form className="login-form" onSubmit={handleLogin}>
             <div className="input-group">
               <label className="input-label" htmlFor="email">E-mail Profissional</label>
@@ -37,6 +69,8 @@ const Login = () => {
                   id="email" 
                   className="input-field pl-icon" 
                   placeholder="dr.nome@clinica.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required 
                 />
               </div>
@@ -54,13 +88,15 @@ const Login = () => {
                   id="password" 
                   className="input-field pl-icon" 
                   placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required 
                 />
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary login-btn">
-              Entrar no sistema <ArrowRight size={18} />
+            <button type="submit" className="btn btn-primary login-btn" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar no sistema'} {!loading && <ArrowRight size={18} />}
             </button>
 
             <div className="divider">

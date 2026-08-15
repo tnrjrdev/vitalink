@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import { Users, FileText, Calendar, Plus, Bell, Search, Activity } from 'lucide-react';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Sidebar from './components/Sidebar';
 import StatCard from './components/StatCard';
 import PatientTimeline from './components/PatientTimeline';
@@ -38,7 +39,7 @@ const Dashboard = () => (
       <div className="bento-main">
         <div className="glass-panel animate-fade-in stagger-2" style={{ padding: '1.5rem', flex: 1 }}>
           <h3>Fluxo de Pacientes (Semanal)</h3>
-          
+
           {/* Gráfico CSS puro para efeito estético rápido sem bibliotecas pesadas */}
           <div className="css-chart">
             <div className="bar hover-lift" style={{ height: '40%' }} data-value="Seg"></div>
@@ -51,7 +52,7 @@ const Dashboard = () => (
           </div>
         </div>
       </div>
-      
+
       <div className="bento-sidebar">
         <PatientTimeline />
       </div>
@@ -72,7 +73,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/auth/login" element={<Login />} />
+        <Route path="/auth/register" element={<Register />} />
+
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           {/* Outras rotas protegidas iriam aqui */}

@@ -54,7 +54,7 @@ app:
     email: ${APP_ADMIN_EMAIL:admin@medico.com}
     password: ${APP_ADMIN_PASSWORD:ChangeMe@123}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080,http://localhost:5173}
   # --- Integracao AWS (desligada por padrao; app sobe no H2 sem credencial) ---
   aws:
     enabled: ${APP_AWS_ENABLED:false}
